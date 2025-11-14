@@ -20,14 +20,24 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'http://localhost:3000', 
+      'http://localhost:3001',
+      'https://special-persons-social-cfea3.web.app',
+      'https://special-persons-social-cfea3.firebaseapp.com'
+    ],
     credentials: true
   }
 });
 
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001',
+    'https://special-persons-social-cfea3.web.app',
+    'https://special-persons-social-cfea3.firebaseapp.com'
+  ],
   credentials: true
 }));
 
