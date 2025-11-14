@@ -16,6 +16,17 @@ console.log('MONGODB_URI available:', !!process.env.MONGODB_URI);
 console.log('MONGO_URI available:', !!process.env.MONGO_URI);
 console.log('JWT_SECRET available:', !!process.env.JWT_SECRET);
 
+// Error if critical environment variables are missing
+if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+  console.error('CRITICAL ERROR: MongoDB URI not found in environment variables');
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.error('CRITICAL ERROR: JWT_SECRET not found in environment variables');
+  process.exit(1);
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
