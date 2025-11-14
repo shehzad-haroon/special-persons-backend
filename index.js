@@ -8,6 +8,14 @@ const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Debug environment variables
+console.log('Environment Variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI available:', !!process.env.MONGODB_URI);
+console.log('MONGO_URI available:', !!process.env.MONGO_URI);
+console.log('JWT_SECRET available:', !!process.env.JWT_SECRET);
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -70,11 +78,13 @@ app.get('/test-image', (req, res) => {
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+console.log('Connecting to MongoDB:', mongoUri ? 'URI Found' : 'URI Missing');
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
-  console.log('MongoDB connected');
+  console.log('MongoDB connected successfully');
 }).catch((err) => {
   console.error('MongoDB connection error:', err);
 });
