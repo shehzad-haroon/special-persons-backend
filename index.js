@@ -86,8 +86,38 @@ app.use('/api/friends', require('./routes/friends'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/stories', require('./routes/stories'));
 
-// Static files with absolute path
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files with better error handling
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Created uploads directory');
+}
+
+app.use('/uploads', express.static(uploadDir, {
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
+
+// Alternative endpoint for images
+app.get('/image/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const imagePath = path.join(uploadDir, filename);
+  
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    // Send a placeholder image URL instead of redirect
+    res.status(404).json({
+      error: 'Image not found',
+      placeholder: 'https://picsum.photos/200/200?random=1'
+    });
+  }
+});
 
 // Test direct image access
 app.get('/test-direct-image', (req, res) => {
