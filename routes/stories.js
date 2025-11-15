@@ -1,16 +1,24 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const auth = require('../middleware/auth');
 const Story = require('../models/Story');
 const User = require('../models/User');
 
 const router = express.Router();
 
+// Ensure stories directory exists
+const storiesDir = path.join(__dirname, '..', 'uploads', 'stories');
+if (!fs.existsSync(storiesDir)) {
+  fs.mkdirSync(storiesDir, { recursive: true });
+  console.log('Created stories directory');
+}
+
 // Configure multer for story uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/stories');
+    cb(null, storiesDir);
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -35,49 +43,62 @@ const upload = multer({
 });
 
 // Create a new story
-router.post('/', auth, upload.single('image'), async (req, res) => {
-  try {
-    const { text, backgroundColor, storyType } = req.body;
-    
-    // Validate story content
-    if (storyType === 'text' && !text) {
-      return res.status(400).json({ message: 'Text is required for text stories' });
+router.post('/', auth, (req, res) => {
+  upload.single('image')(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      console.error('Multer error:', err);
+      return res.status(400).json({ message: `Upload error: ${err.message}` });
+    } else if (err) {
+      console.error('Upload error:', err);
+      return res.status(400).json({ message: err.message });
     }
     
-    if (storyType === 'image' && !req.file) {
-      return res.status(400).json({ message: 'Image is required for image stories' });
+    try {
+      const { text, backgroundColor, storyType } = req.body;
+      
+      console.log('Creating story with data:', { text, backgroundColor, storyType, hasFile: !!req.file });
+      
+      // Validate story content
+      if (storyType === 'text' && !text) {
+        return res.status(400).json({ message: 'Text is required for text stories' });
+      }
+      
+      if (storyType === 'image' && !req.file) {
+        return res.status(400).json({ message: 'Image is required for image stories' });
+      }
+
+      const storyData = {
+        user: req.user.id,
+        storyType: storyType || 'text',
+        text: text || '',
+        backgroundColor: backgroundColor || '#1877f2',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+      };
+
+      if (req.file) {
+        storyData.image = `/uploads/stories/${req.file.filename}`;
+      }
+
+      const story = new Story(storyData);
+      await story.save();
+
+      // Populate user info
+      await story.populate('user', 'name profilePicture');
+
+      console.log('Story created successfully:', story._id);
+      res.status(201).json({
+        message: 'Story created successfully',
+        story
+      });
+
+    } catch (error) {
+      console.error('Create story error:', error);
+      res.status(500).json({ 
+        message: 'Error creating story',
+        error: error.message 
+      });
     }
-
-    const storyData = {
-      user: req.user.id,
-      storyType: storyType || 'text',
-      text: text || '',
-      backgroundColor: backgroundColor || '#1877f2',
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
-    };
-
-    if (req.file) {
-      storyData.image = `/uploads/stories/${req.file.filename}`;
-    }
-
-    const story = new Story(storyData);
-    await story.save();
-
-    // Populate user info
-    await story.populate('user', 'name profilePicture');
-
-    res.status(201).json({
-      message: 'Story created successfully',
-      story
-    });
-
-  } catch (error) {
-    console.error('Create story error:', error);
-    res.status(500).json({ 
-      message: 'Error creating story',
-      error: error.message 
-    });
-  }
+  });
 });
 
 // Get stories from user and friends
