@@ -35,7 +35,9 @@ const io = socketIo(server, {
       'http://localhost:3000', 
       'http://localhost:3001',
       'https://special-persons-social-cfea3.web.app',
-      'https://special-persons-social-cfea3.firebaseapp.com'
+      'https://special-persons-social-cfea3.firebaseapp.com',
+      'https://proudtobespecials.com',
+      'https://www.proudtobespecials.com'
     ],
     credentials: true
   }
@@ -47,7 +49,9 @@ app.use(cors({
     'http://localhost:3000', 
     'http://localhost:3001',
     'https://special-persons-social-cfea3.web.app',
-    'https://special-persons-social-cfea3.firebaseapp.com'
+    'https://special-persons-social-cfea3.firebaseapp.com',
+    'https://proudtobespecials.com',
+    'https://www.proudtobespecials.com'
   ],
   credentials: true
 }));
