@@ -8,18 +8,51 @@ const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Debug environment variables
+console.log('Environment Variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI available:', !!process.env.MONGODB_URI);
+console.log('MONGO_URI available:', !!process.env.MONGO_URI);
+console.log('JWT_SECRET available:', !!process.env.JWT_SECRET);
+
+// Error if critical environment variables are missing
+if (!process.env.MONGODB_URI && !process.env.MONGO_URI) {
+  console.error('CRITICAL ERROR: MongoDB URI not found in environment variables');
+  process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.error('CRITICAL ERROR: JWT_SECRET not found in environment variables');
+  process.exit(1);
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'http://localhost:3000', 
+      'http://localhost:3001',
+      'https://special-persons-social-cfea3.web.app',
+      'https://special-persons-social-cfea3.firebaseapp.com',
+      'https://proudtobespecials.com',
+      'https://www.proudtobespecials.com'
+    ],
     credentials: true
   }
 });
 
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001',
+    'https://special-persons-social-cfea3.web.app',
+    'https://special-persons-social-cfea3.firebaseapp.com',
+    'https://proudtobespecials.com',
+    'https://www.proudtobespecials.com'
+  ],
   credentials: true
 }));
 
@@ -27,6 +60,25 @@ app.use(cors({
 app.use((req, res, next) => {
   req.io = io;
   next();
+});
+
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Special Persons Backend API is running!',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// API health check
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'API endpoints active',
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Routes
@@ -38,8 +90,38 @@ app.use('/api/friends', require('./routes/friends'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/stories', require('./routes/stories'));
 
-// Static files with absolute path
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files with better error handling
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Created uploads directory');
+}
+
+app.use('/uploads', express.static(uploadDir, {
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
+
+// Alternative endpoint for images
+app.get('/image/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const imagePath = path.join(uploadDir, filename);
+  
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    // Send a placeholder image URL instead of redirect
+    res.status(404).json({
+      error: 'Image not found',
+      placeholder: 'https://picsum.photos/200/200?random=1'
+    });
+  }
+});
 
 // Test direct image access
 app.get('/test-direct-image', (req, res) => {
@@ -70,11 +152,13 @@ app.get('/test-image', (req, res) => {
 });
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+console.log('Connecting to MongoDB:', mongoUri ? 'URI Found' : 'URI Missing');
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
-  console.log('MongoDB connected');
+  console.log('MongoDB connected successfully');
 }).catch((err) => {
   console.error('MongoDB connection error:', err);
 });
